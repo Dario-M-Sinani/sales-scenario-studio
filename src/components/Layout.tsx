@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { UploadCloud, BarChart3, ShoppingCart, AlertTriangle } from "lucide-react";
+import { UploadCloud, BarChart3, ShoppingCart } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface LayoutProps {
@@ -8,10 +8,9 @@ interface LayoutProps {
 }
 
 const navigation = [
-  { name: "Carga de Datos", href: "/upload", icon: UploadCloud },
+  { name: "Carga de Catálogo", href: "/upload", icon: UploadCloud },
   { name: "Simulador", href: "/simulator", icon: BarChart3 },
-  { name: "Reporte de Compras", href: "/purchasing", icon: ShoppingCart },
-  { name: "Alertas", href: "/alerts", icon: AlertTriangle },
+  { name: "Reportes", href: "/reports", icon: ShoppingCart },
 ];
 
 export default function Layout({ children }: LayoutProps) {
