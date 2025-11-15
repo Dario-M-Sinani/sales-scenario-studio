@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { UploadCloud, BarChart3, ShoppingCart } from "lucide-react";
+import { UploadCloud, BarChart3, ShoppingCart,AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface LayoutProps {
@@ -12,6 +12,7 @@ const navigation = [
   { name: "Simulador", href: "/simulator", icon: BarChart3 },
   { name: "Reportes", href: "/reports", icon: ShoppingCart },
   { name: "Productos", href: "/productos", icon: ShoppingCart },
+  { name: "Alertas", href: "/alerts", icon: AlertTriangle },
 ];
 
 export default function Layout({ children }: LayoutProps) {

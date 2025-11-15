@@ -8,6 +8,7 @@ import Upload from "./pages/Upload";
 import Simulator from "./pages/Simulator";
 import Reports from "./pages/Reports";
 import Productos from "./pages/Productos";
+import Alerts from "./pages/Alerts";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
             <Route path="/simulator" element={<Simulator />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/productos" element={<Productos />} />
+            <Route path="/alerts" element={<Alerts />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
