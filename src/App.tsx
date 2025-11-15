@@ -7,6 +7,7 @@ import Layout from "./components/Layout";
 import Upload from "./pages/Upload";
 import Simulator from "./pages/Simulator";
 import Reports from "./pages/Reports";
+import Productos from "./pages/Productos";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,6 +24,7 @@ const App = () => (
             <Route path="/upload" element={<Upload />} />
             <Route path="/simulator" element={<Simulator />} />
             <Route path="/reports" element={<Reports />} />
+            <Route path="/productos" element={<Productos />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -11,6 +11,7 @@ const navigation = [
   { name: "Carga de Catálogo", href: "/upload", icon: UploadCloud },
   { name: "Simulador", href: "/simulator", icon: BarChart3 },
   { name: "Reportes", href: "/reports", icon: ShoppingCart },
+  { name: "Productos", href: "/productos", icon: ShoppingCart },
 ];
 
 export default function Layout({ children }: LayoutProps) {
