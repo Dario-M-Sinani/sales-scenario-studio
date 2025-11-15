@@ -21,7 +21,7 @@ export default function Layout({ children }: LayoutProps) {
       {/* Sidebar */}
       <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-border bg-card">
         <div className="flex h-full flex-col">
-          {/* Logo */}
+          <img src=".\public\totalpec.png" alt="total pec"/>
           <div className="flex h-16 items-center border-b border-border px-6">
             <h1 className="text-xl font-bold text-primary">Total PEC</h1>
           </div>
