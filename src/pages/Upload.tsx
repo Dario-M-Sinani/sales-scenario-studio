@@ -1,13 +1,133 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { UploadCloud, Package } from "lucide-react";
+import { UploadCloud, Package, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import PreviewModal from "@/components/Upload/PreviewModal";
+
+interface FileData {
+  headers: string[];
+  rows: any[][];
+  totalRows: number;
+  totalColumns: number;
+  hasHeaders: boolean;
+}
 
 export default function UploadPage() {
   const navigate = useNavigate();
   const [catalogFile, setCatalogFile] = useState<File | null>(null);
+  const [fileData, setFileData] = useState<FileData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showModal, setShowModal] = useState(false);
+
+  const parseCSV = (text: string): string[][] => {
+    const lines: string[][] = [];
+    let currentLine: string[] = [];
+    let currentValue = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      const nextChar = text[i + 1];
+
+      if (char === '"') {
+        if (inQuotes && nextChar === '"') {
+          currentValue += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char === ',' && !inQuotes) {
+        currentLine.push(currentValue.trim());
+        currentValue = '';
+      } else if ((char === '\n' || char === '\r') && !inQuotes) {
+        if (char === '\r' && nextChar === '\n') {
+          i++;
+        }
+        if (currentValue || currentLine.length > 0) {
+          currentLine.push(currentValue.trim());
+          lines.push(currentLine);
+          currentLine = [];
+          currentValue = '';
+        }
+      } else {
+        currentValue += char;
+      }
+    }
+
+    if (currentValue || currentLine.length > 0) {
+      currentLine.push(currentValue.trim());
+      lines.push(currentLine);
+    }
+
+    return lines.filter(line => line.some(cell => cell !== ''));
+  };
+
+  const processFile = async (file: File) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const text = await file.text();
+      const parsedData = parseCSV(text);
+
+      if (parsedData.length === 0) {
+        setError('El archivo está vacío');
+        setLoading(false);
+        return;
+      }
+
+      const firstRow = parsedData[0];
+      const hasHeaders = firstRow.every((cell: string) => {
+        const trimmed = cell.trim();
+        return trimmed !== '' && isNaN(Number(trimmed));
+      });
+
+      let headers: string[];
+      let dataRows: string[][];
+
+      if (hasHeaders) {
+        headers = firstRow.map((h: string) => h || 'Sin nombre');
+        dataRows = parsedData.slice(1);
+      } else {
+        headers = firstRow.map((_: string, index: number) => `Columna ${index + 1}`);
+        dataRows = parsedData;
+      }
+
+      const maxColumns = Math.max(...parsedData.map(row => row.length));
+      if (headers.length < maxColumns) {
+        for (let i = headers.length; i < maxColumns; i++) {
+          headers.push(`Columna ${i + 1}`);
+        }
+      }
+
+      const normalizedRows = dataRows.map(row => {
+        const newRow = [...row];
+        while (newRow.length < maxColumns) {
+          newRow.push('');
+        }
+        return newRow;
+      });
+
+      const previewRows = normalizedRows.slice(0, 3);
+
+      setFileData({
+        headers,
+        rows: previewRows,
+        totalRows: normalizedRows.length,
+        totalColumns: headers.length,
+        hasHeaders
+      });
+
+      setShowModal(true);
+      setLoading(false);
+    } catch (err) {
+      setError('Error al procesar el archivo. Asegúrate de que sea un archivo CSV válido.');
+      setLoading(false);
+    }
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -18,6 +138,7 @@ export default function UploadPage() {
     const file = e.dataTransfer.files[0];
     if (file && file.type === "text/csv") {
       setCatalogFile(file);
+      processFile(file);
       toast.success(`Archivo ${file.name} cargado correctamente`);
     } else {
       toast.error("Por favor, sube un archivo CSV válido");
@@ -28,8 +149,46 @@ export default function UploadPage() {
     const file = e.target.files?.[0];
     if (file) {
       setCatalogFile(file);
+      processFile(file);
       toast.success(`Archivo ${file.name} cargado correctamente`);
     }
+  };
+
+  const handleSubmit = async () => {
+    if (!catalogFile || !fileData) return;
+
+    console.log('=== LLAMADA A LA API ===');
+    console.log('Archivo:', catalogFile.name);
+    console.log('Tipo:', catalogFile.type);
+    console.log('Datos del archivo:', {
+      totalFilas: fileData.totalRows,
+      totalColumnas: fileData.totalColumns,
+      tieneEncabezados: fileData.hasHeaders,
+      encabezados: fileData.headers
+    });
+    
+    // Aquí irá la llamada a la API real
+    // const formData = new FormData();
+    // formData.append('file', catalogFile);
+    // const response = await fetch('/api/upload', {
+    //   method: 'POST',
+    //   body: formData
+    // });
+
+    toast.success("Datos procesados correctamente");
+    setShowModal(false);
+    setTimeout(() => navigate("/simulator"), 1000);
+  };
+
+  const handleReset = () => {
+    setCatalogFile(null);
+    setFileData(null);
+    setError(null);
+    setShowModal(false);
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
   };
 
   const handleProcess = () => {
@@ -37,8 +196,7 @@ export default function UploadPage() {
       toast.error("Por favor, carga el archivo antes de continuar");
       return;
     }
-    toast.success("Datos procesados correctamente");
-    setTimeout(() => navigate("/simulator"), 1000);
+    setShowModal(true);
   };
 
   return (
@@ -89,6 +247,20 @@ export default function UploadPage() {
                 Seleccionar Archivo
               </label>
             </div>
+
+            {error && (
+              <div className="mt-4 flex items-center gap-2 rounded-lg bg-destructive/15 p-3 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4" />
+                {error}
+              </div>
+            )}
+
+            {loading && (
+              <div className="mt-4 flex flex-col items-center gap-2 p-4">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+                <p className="text-sm text-muted-foreground">Procesando archivo...</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -104,6 +276,16 @@ export default function UploadPage() {
           </Button>
         </div>
       </div>
+
+      {/* Modal de Confirmación */}
+      {showModal && fileData && (
+        <PreviewModal
+          fileData={fileData}
+          onClose={handleCloseModal}
+          onSubmit={handleSubmit}
+          onReset={handleReset}
+        />
+      )}
     </div>
   );
 }
