@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getProducts, createProduct, updateProduct, deleteProduct, Product } from "@/services/productService";
 import {
@@ -16,6 +16,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Pencil, Trash2 } from "lucide-react";
 import {
   Dialog,
@@ -42,6 +50,8 @@ const Productos = () => {
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>(undefined);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState("nombre-asc");
 
   const { data: products, isLoading, isError } = useQuery<Product[]>({
     queryKey: ["products"],
@@ -90,6 +100,31 @@ const Productos = () => {
     deleteProductMutation.mutate(id);
   };
 
+  const filteredAndSortedProducts = useMemo(() => {
+    let filtered = products || [];
+
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (product) =>
+          product.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          product.codigo.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    switch (sortBy) {
+      case "stock-desc":
+        return filtered.sort((a, b) => b.stock - a.stock);
+      case "precio-asc":
+        return filtered.sort((a, b) => parseFloat(a.precio_venta) - parseFloat(b.precio_venta));
+      case "precio-desc":
+        return filtered.sort((a, b) => parseFloat(b.precio_venta) - parseFloat(a.precio_venta));
+      case "nombre-asc":
+        return filtered.sort((a, b) => a.nombre.localeCompare(b.nombre));
+      default:
+        return filtered;
+    }
+  }, [products, searchTerm, sortBy]);
+
   if (isLoading) {
     return <div>Cargando...</div>;
   }
@@ -101,19 +136,40 @@ const Productos = () => {
   return (
     <div className="p-4">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Productos</CardTitle>
-          <Dialog open={isCreateDialogOpen} onOpenChange={setCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>Crear Producto</Button>
-            </DialogTrigger>
-            <DialogContent className="max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Crear Producto</DialogTitle>
-              </DialogHeader>
-              <ProductForm onSubmit={handleCreateSubmit} isSubmitting={createProductMutation.isPending} />
-            </DialogContent>
-          </Dialog>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <CardTitle>Productos</CardTitle>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <Input
+                placeholder="Buscar por nombre o código..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full sm:w-64"
+              />
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-full sm:w-48">
+                  <SelectValue placeholder="Ordenar por" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="nombre-asc">Nombre (A-Z)</SelectItem>
+                  <SelectItem value="stock-desc">Stock (Mayor a menor)</SelectItem>
+                  <SelectItem value="precio-asc">Precio (Menor a mayor)</SelectItem>
+                  <SelectItem value="precio-desc">Precio (Mayor a menor)</SelectItem>
+                </SelectContent>
+              </Select>
+              <Dialog open={isCreateDialogOpen} onOpenChange={setCreateDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="w-full sm:w-auto">Crear Producto</Button>
+                </DialogTrigger>
+                <DialogContent className="max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Crear Producto</DialogTitle>
+                  </DialogHeader>
+                  <ProductForm onSubmit={handleCreateSubmit} isSubmitting={createProductMutation.isPending} />
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -127,7 +183,7 @@ const Productos = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {products?.map((product) => (
+              {filteredAndSortedProducts?.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell>{product.codigo}</TableCell>
                   <TableCell>{product.nombre}</TableCell>
