@@ -1,288 +1,203 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
-import { Play } from "lucide-react";
-import { toast } from "sonner";
-
-const COLORS = {
-  optimistic: "hsl(var(--optimistic))",
-  realistic: "hsl(var(--realistic))",
-  conservative: "hsl(var(--conservative))",
-};
+// src/pages/SimulatorPage/SimulatorPage.tsx
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import ProductSearch from '@/components/Simulator/ProductSearch';
+import ProductTable from '@/components/Simulator/ProductTable';
+import SimulationForm from '@/components/Simulator/SimulationForm';
+import ResultChart from '@/components/Simulator/ResultChart';
+import type { Product, SimulationParams, SimulationResult, PredictionData } from '@/types';
+import { mockProducts, mockHistoricalData } from './MockData';
+import styles from '@/styles/Simulador.module.css';
 
 export default function SimulatorPage() {
   const navigate = useNavigate();
-  const [showResults, setShowResults] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [hasPromotions, setHasPromotions] = useState(false);
-  const [hasFairs, setHasFairs] = useState(false);
-  const [hasSpecialWeather, setHasSpecialWeather] = useState(false);
-  
-  const [scenarioData, setScenarioData] = useState({
-    optimistic: [
-      { name: "Producto A", value: 35 },
-      { name: "Producto B", value: 25 },
-      { name: "Producto C", value: 20 },
-      { name: "Producto D", value: 15 },
-      { name: "Otros", value: 5 },
-    ],
-    realistic: [
-      { name: "Producto A", value: 30 },
-      { name: "Producto B", value: 25 },
-      { name: "Producto C", value: 22 },
-      { name: "Producto D", value: 18 },
-      { name: "Otros", value: 5 },
-    ],
-    conservative: [
-      { name: "Producto A", value: 25 },
-      { name: "Producto B", value: 25 },
-      { name: "Producto C", value: 25 },
-      { name: "Producto D", value: 20 },
-      { name: "Otros", value: 5 },
-    ],
-  });
+  const [products] = useState<Product[]>(mockProducts);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>(mockProducts);
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [showSimulationForm, setShowSimulationForm] = useState(false);
+  const [simulationResults, setSimulationResults] = useState<SimulationResult[]>([]);
 
-  const handleRunSimulation = async () => {
-    setIsLoading(true);
-    setShowResults(false);
-    
-    // Simulate API call
-    toast.info("Ejecutando simulación...");
-    
-    // TODO: Replace with actual API call
-    // const response = await fetch('/api/simulate', {
-    //   method: 'POST',
-    //   body: JSON.stringify({
-    //     promotions: hasPromotions ? 1 : 0,
-    //     fairs: hasFairs ? 1 : 0,
-    //     special_weather: hasSpecialWeather ? 1 : 0,
-    //   })
-    // });
-    // const data = await response.json();
-    // setScenarioData(data);
-    
-    setTimeout(() => {
-      setIsLoading(false);
-      setShowResults(true);
-      toast.success("Simulación completada");
-    }, 2000);
+  // NUEVO: Sincroniza selectedProducts con filteredProducts
+  useEffect(() => {
+    setSelectedProducts(prev =>
+      prev.filter(code => filteredProducts.some(p => p.code === code))
+    );
+  }, [filteredProducts]);
+
+  const handleSearch = (query: string) => {
+    if (query.trim() === '') {
+      setFilteredProducts(products);
+    } else {
+      const filtered = products.filter(p =>
+        p.code.toLowerCase().includes(query.toLowerCase()) ||
+        p.name.toLowerCase().includes(query.toLowerCase())
+      );
+      setFilteredProducts(filtered);
+    }
   };
 
-  const handleGenerateReports = () => {
-    navigate("/reports");
+  const handleToggleProduct = (code: string) => {
+    setSelectedProducts(prev =>
+      prev.includes(code)
+        ? prev.filter(c => c !== code)
+        : [...prev, code]
+    );
   };
+
+  const handleToggleAll = () => {
+    const visibleCodes = filteredProducts.map(p => p.code);
+    const allVisibleSelected = visibleCodes.every(code => selectedProducts.includes(code));
+
+    if (allVisibleSelected) {
+      // Deseleccionar todos los visibles
+      setSelectedProducts(prev => prev.filter(code => !visibleCodes.includes(code)));
+    } else {
+      // Seleccionar todos los visibles (sin duplicados)
+      setSelectedProducts(prev => [
+        ...prev.filter(code => !visibleCodes.includes(code)),
+        ...visibleCodes
+      ]);
+    }
+  };
+
+  const handleStartSimulation = () => {
+    if (selectedProducts.length === 0) {
+      alert('Por favor, selecciona al menos un producto');
+      return;
+    }
+    setShowSimulationForm(true);
+  };
+
+  const handleSimulationSubmit = async (params: SimulationParams) => {
+    const apiPayload = {
+      productCodes: selectedProducts,
+      months: params.months,
+      hasRain: params.hasRain,
+      hasPromotion: params.hasPromotion,
+      hasFair: params.hasFair
+    };
+
+    console.log('=== LLAMADA A LA API ===');
+    console.log('Endpoint: POST /api/simulate');
+    console.log('Payload:', JSON.stringify(apiPayload, null, 2));
+    console.log('========================');
+
+    // Simulación con datos mock
+    const results: SimulationResult[] = selectedProducts.map(code => {
+      const product = products.find(p => p.code === code)!;
+      const historical = mockHistoricalData[code] || [];
+      const predictions: PredictionData[] = [];
+      const months = ['nov-25', 'dic-25', 'ene-26', 'feb-26', 'mar-26', 'abr-26'];
+
+      for (let i = 0; i < params.months; i++) {
+        const baseSales = historical[historical.length - 1]?.sales || 100;
+        let predictedSales = baseSales * (0.8 + Math.random() * 0.4);
+
+        if (params.hasPromotion) predictedSales *= 1.3;
+        if (params.hasFair) predictedSales *= 1.2;
+        if (params.hasRain) predictedSales *= 0.85;
+
+        predictions.push({
+          month: months[i],
+          sales: Math.round(predictedSales)
+        });
+      }
+
+      const totalPredicted = predictions.reduce((sum, p) => sum + p.sales, 0);
+
+      return {
+        productCode: code,
+        historical,
+        predictions,
+        stock: product.stock,
+        stockSufficient: product.stock >= totalPredicted,
+        shortfall: product.stock < totalPredicted ? totalPredicted - product.stock : undefined
+      };
+    });
+
+    console.log('=== RESPUESTA MOCK ===', results);
+    setSimulationResults(results);
+    setShowSimulationForm(false);
+  };
+
+  const handleCancelSimulation = () => {
+    setShowSimulationForm(false);
+  };
+
+  const handleNewSimulation = () => {
+    setSimulationResults([]);
+    setSelectedProducts([]);
+    setShowSimulationForm(false);
+  };
+
+  // Contador de productos seleccionados visibles
+  const visibleSelectedCount = selectedProducts.filter(code =>
+    filteredProducts.some(p => p.code === code)
+  ).length;
 
   return (
-    <div className="min-h-screen bg-background p-8">
-      <div className="mx-auto max-w-7xl">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Dashboard de Simulación</h1>
-          <p className="mt-2 text-muted-foreground">
-            Configura las variables y ejecuta la simulación
-          </p>
-        </div>
+    <div className={styles.container}>
+      <h1 className={styles.title}>Simulador de Ventas</h1>
+      <p className={styles.subtitle}>
+        Selecciona productos y configura los parámetros para predecir ventas futuras
+      </p>
 
-        {/* Filters */}
-        <Card className="mb-6">
-          <CardContent className="flex flex-wrap gap-4 pt-6">
-            <div className="flex-1 min-w-[200px]">
-              <Label>Seleccionar Ítem o Categoría</Label>
-              <Select defaultValue="all">
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos los productos</SelectItem>
-                  <SelectItem value="cat1">Categoría 1</SelectItem>
-                  <SelectItem value="cat2">Categoría 2</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+      {simulationResults.length === 0 ? (
+        <>
+          {!showSimulationForm ? (
+            <>
+              <ProductSearch onSearch={handleSearch} />
 
-            <div className="flex-1 min-w-[200px]">
-              <Label>Período de Simulación</Label>
-              <Select defaultValue="1m">
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1m">Próximo 1 Mes</SelectItem>
-                  <SelectItem value="2m">Próximos 2 Meses</SelectItem>
-                  <SelectItem value="3m">Próximos 3 Meses</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Variables Externas */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Variables Externas</CardTitle>
-            <CardDescription>Selecciona los factores que afectarán la simulación</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="promotions" 
-                checked={hasPromotions}
-                onCheckedChange={(checked) => setHasPromotions(checked as boolean)}
-              />
-              <label
-                htmlFor="promotions"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                ¿Habrá Promociones?
-              </label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="fairs" 
-                checked={hasFairs}
-                onCheckedChange={(checked) => setHasFairs(checked as boolean)}
-              />
-              <label
-                htmlFor="fairs"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                ¿Habrá Ferias?
-              </label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="weather" 
-                checked={hasSpecialWeather}
-                onCheckedChange={(checked) => setHasSpecialWeather(checked as boolean)}
-              />
-              <label
-                htmlFor="weather"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                ¿Condiciones climáticas especiales?
-              </label>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Execute Button */}
-        <div className="mb-8 flex justify-center">
-          <Button 
-            size="lg" 
-            onClick={handleRunSimulation} 
-            className="px-12"
-            disabled={isLoading}
-          >
-            <Play className="mr-2 h-5 w-5" />
-            {isLoading ? "Ejecutando..." : "Ejecutar Simulación"}
-          </Button>
-        </div>
-
-        {/* Results */}
-        {(showResults || isLoading) && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Resultados de la Simulación</CardTitle>
-              <CardDescription>Distribución de demanda proyectada por escenario</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-8 md:grid-cols-3">
-                {/* Optimistic Scenario */}
-                <div className="text-center">
-                  <h3 className="mb-4 text-lg font-semibold text-optimistic">Escenario Optimista</h3>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <PieChart>
-                      <Pie
-                        data={isLoading ? [] : scenarioData.optimistic}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {scenarioData.optimistic.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS.optimistic} opacity={1 - index * 0.15} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      {!isLoading && <Legend />}
-                    </PieChart>
-                  </ResponsiveContainer>
-                  {isLoading && <p className="text-sm text-muted-foreground">Cargando...</p>}
-                </div>
-
-                {/* Realistic Scenario */}
-                <div className="text-center">
-                  <h3 className="mb-4 text-lg font-semibold text-realistic">Escenario Realista</h3>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <PieChart>
-                      <Pie
-                        data={isLoading ? [] : scenarioData.realistic}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {scenarioData.realistic.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS.realistic} opacity={1 - index * 0.15} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      {!isLoading && <Legend />}
-                    </PieChart>
-                  </ResponsiveContainer>
-                  {isLoading && <p className="text-sm text-muted-foreground">Cargando...</p>}
-                </div>
-
-                {/* Conservative Scenario */}
-                <div className="text-center">
-                  <h3 className="mb-4 text-lg font-semibold text-conservative">Escenario Conservador/Pesimista</h3>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <PieChart>
-                      <Pie
-                        data={isLoading ? [] : scenarioData.conservative}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {scenarioData.conservative.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS.conservative} opacity={1 - index * 0.15} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      {!isLoading && <Legend />}
-                    </PieChart>
-                  </ResponsiveContainer>
-                  {isLoading && <p className="text-sm text-muted-foreground">Cargando...</p>}
-                </div>
+              <div className={styles.selectedInfo}>
+                <span className={styles.selectedText}>
+                  {visibleSelectedCount > 0
+                    ? `${visibleSelectedCount} de ${selectedProducts.length} seleccionado(s)`
+                    : `${selectedProducts.length} producto(s) seleccionado(s)`}
+                </span>
+                {selectedProducts.length > 0 && (
+                  <button onClick={handleStartSimulation} className={styles.simulateButton}>
+                    Iniciar Simulación
+                  </button>
+                )}
               </div>
 
-              {/* Generate Reports Button */}
-              {showResults && !isLoading && (
-                <div className="mt-8 flex justify-center">
-                  <Button size="lg" onClick={handleGenerateReports} className="px-12">
-                    Generar Reportes
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-      </div>
+              <ProductTable
+                products={filteredProducts}
+                selectedProducts={selectedProducts}
+                onToggleProduct={handleToggleProduct}
+                onToggleAll={handleToggleAll}
+              />
+            </>
+          ) : (
+            <SimulationForm
+              onSubmit={handleSimulationSubmit}
+              onCancel={handleCancelSimulation}
+            />
+          )}
+        </>
+      ) : (
+        <>
+          <div className={styles.resultsHeader}>
+            <h2 className={styles.resultsTitle}>Resultados de la Simulación</h2>
+            <button onClick={handleNewSimulation} className={styles.newSimulationButton}>
+              Nueva Simulación
+            </button>
+          </div>
+
+          <div className={styles.resultsContainer}>
+            {simulationResults.map(result => {
+              const product = products.find(p => p.code === result.productCode)!;
+              return (
+                <ResultChart
+                  key={result.productCode}
+                  result={result}
+                  productName={`${product.code} - ${product.name}`}
+                />
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 }
